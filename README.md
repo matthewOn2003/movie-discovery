@@ -11,7 +11,7 @@
 ![CineScreen README Image 1](./docs/cinescreen-readme-image-1.png)
 ![CineScreen README Image 2](./docs/cinescreen-readme-image-2.png)
 
-🔗 **Live Demo:** [Click Here](https://cinescreen-kappa-six.vercel.app)
+🔗 **Live Demo:** [Click Here](https://movie-discovery-blush.vercel.app/)
 
 ---
 
