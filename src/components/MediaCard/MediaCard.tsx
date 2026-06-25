@@ -86,7 +86,7 @@ export function MediaCard({
 
         {/* Hover Info Overlay */}
         <div
-          className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent p-4 transition-opacity duration-300 ${
+          className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent p-4 transition-opacity duration-300 pointer-events-none ${
             isHovered ? 'opacity-100' : 'opacity-0'
           }`}
         >

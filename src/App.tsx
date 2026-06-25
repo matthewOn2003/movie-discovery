@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Heart, Film, SlidersHorizontal, Trash2, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GENRES } from '@/data/genres';
@@ -6,31 +6,94 @@ import { useGetMoviesQuery } from '@/features/movies/moviesApi';
 import { MediaCard } from './components/MediaCard/MediaCard';
 import { FilterPanel } from './components/FilterPanel/FilterPanel';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './components/ui/sheet';
-import type { FilterState } from './types';
+import type { FilterState, Movie } from './types';
+import { useSearchParams } from 'react-router-dom';
+import { useInfiniteScroll } from './hooks/useInfiniteScroll';
 
 export default function App() {
 
   // 1. Core Filter & Search States
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterState>({
-    genre: 'All',
-    year: 'All',
-    minRating: 0,
-    sortBy: 'rating-desc',
+    genre: searchParams.get('genre') ?? 'All',
+    year: searchParams.get('year') ?? 'All',
+    minRating: Number(searchParams.get('rating') ?? 0),
+    sortBy: searchParams.get('sort') ?? 'rating-desc',
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [favorites, setFavorites] = useState<number[]>([1, 4, 9]); // Pre-favorite some items to look populated
+
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  const [favorites, setFavorites] = useState<Movie[]>(() => {
+    try {
+      const stored = localStorage.getItem('favorites');
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      const final = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+      return Array.isArray(final) ? final : [];
+    } catch {
+      return [];
+    }
+  });
   const [viewOnlyFavorites, setViewOnlyFavorites] = useState(false);
 
-  const { data, isLoading, isError } = useGetMoviesQuery({
+  // const { data, isLoading, isError } = useGetMoviesQuery({
+  //   genreId: filters.genre === 'All' ? null : parseInt(filters.genre),
+  //   releaseYear: filters.year === 'All' ? null : parseInt(filters.year),
+  //   minRating: filters.minRating,
+  //   sortBy: 'popularity.desc',
+  //   page: 1,
+  //   searchQuery,
+  // });
+
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (filters.genre !== 'All') params.genre = filters.genre;
+    if (filters.year !== 'All') params.year = filters.year;
+    if (filters.minRating > 0) params.rating = String(filters.minRating);
+    if (filters.sortBy !== 'rating-desc') params.sort = filters.sortBy;
+    if (searchQuery) params.q = searchQuery;
+    setSearchParams(params, { replace: true });
+  }, [filters, searchQuery]);
+  
+  useEffect(() => {
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+
+  const [page, setPage] = useState(1);
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+
+  const { data, isLoading, isFetching } = useGetMoviesQuery({
     genreId: filters.genre === 'All' ? null : parseInt(filters.genre),
     releaseYear: filters.year === 'All' ? null : parseInt(filters.year),
     minRating: filters.minRating,
     sortBy: 'popularity.desc',
-    page: 1,
+    page,
     searchQuery,
   });
 
-  const moviesFromApi = data?.results ?? [];
+  // 每次拿到新数据就累积进 allMovies
+  useEffect(() => {
+    if (data?.results) {
+      setAllMovies((prev) =>
+        page === 1 ? data.results : [...prev, ...data.results]
+      );
+    }
+  }, [data]);
+
+  // 筛选条件变化时重置
+  useEffect(() => {
+    setPage(1);
+    setAllMovies([]);
+  }, [filters, searchQuery]);
+
+  const hasNextPage = page < (data?.totalPages ?? 1);
+
+  const { sentinelRef } = useInfiniteScroll({
+    onLoadMore: () => setPage((prev) => prev + 1),
+    hasNextPage,
+    isLoading: isFetching,
+  });
+  
 
   // 2. Event Handlers (handleXxx naming)
   function handleGenreChange(genre: string) {
@@ -60,9 +123,11 @@ export default function App() {
     setViewOnlyFavorites(false);
   }
 
-  function handleFavoriteToggle(id: number) {
+  function handleFavoriteToggle(movie: Movie) {
     setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.some((f) => f.id === movie.id)
+        ? prev.filter((f) => f.id !== movie.id)
+        : [...prev, movie]
     );
   }
 
@@ -282,19 +347,18 @@ export default function App() {
 
             {/* C. MEDIA CARD GRID LAYOUT */}
             <AnimatePresence mode="popLayout">
-              {(data?.results.length ?? 0) > 0 ? (
+              {(viewOnlyFavorites ? favorites.length : (data?.results.length ?? 0)) > 0 ? (
                 <motion.div
-                  layout
                   className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
                 >
-                  {(data?.results ?? []).map((movie) => (
+                  {(viewOnlyFavorites ? favorites : allMovies).map((movie) => (
                     <MediaCard
                       key={movie.id}
                       title={movie.title}
                       posterUrl={movie.posterUrl}
                       rating={movie.rating}
-                      isFavorited={favorites.includes(movie.id)}
-                      onFavoriteToggle={() => handleFavoriteToggle(movie.id)}
+                      isFavorited={(favorites).some((f) => f.id === movie.id)}
+                      onFavoriteToggle={() => handleFavoriteToggle(movie)}
                     />
                   ))}
                 </motion.div>
@@ -325,6 +389,12 @@ export default function App() {
             </AnimatePresence>
           </div>
         </div>
+        {!viewOnlyFavorites && (
+          <div ref={sentinelRef} className="h-10 w-full" />
+        )}
+        {isFetching && (
+          <div className="py-6 text-center text-sm text-slate-500">Loading more...</div>
+        )}
       </main>
 
       {/* 3. Global Footer */}
