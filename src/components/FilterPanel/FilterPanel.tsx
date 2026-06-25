@@ -1,5 +1,6 @@
 import React from 'react';
 import { Film, Calendar, Star, RefreshCw, Layers } from 'lucide-react';
+import { GENRES } from '@/data/genres';
 
 // 1. Props 接口定义（紧贴组件，非独立文件）
 interface FilterPanelProps {
@@ -14,16 +15,6 @@ interface FilterPanelProps {
   onReset: () => void;
   totalCount: number;
 }
-
-const GENRES = [
-  { value: 'All', label: 'All Genres (全部类型)' },
-  { value: 'Action', label: 'Action (动作)' },
-  { value: 'Comedy', label: 'Comedy (喜剧)' },
-  { value: 'Drama', label: 'Drama (剧情)' },
-  { value: 'Sci-Fi', label: 'Sci-Fi (科幻)' },
-  { value: 'Romance', label: 'Romance (爱情)' },
-  { value: 'Thriller', label: 'Thriller (悬疑)' },
-];
 
 const YEARS = [
   { value: 'All', label: 'All Years (全部年份)' },

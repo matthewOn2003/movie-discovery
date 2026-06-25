@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Heart, Film, SlidersHorizontal, Trash2, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-// import { MOVIES_DATA } from './data/movies';
+import { GENRES } from '@/data/genres';
 import { useGetMoviesQuery } from '@/features/movies/moviesApi';
 import { MediaCard } from './components/MediaCard/MediaCard';
 import { FilterPanel } from './components/FilterPanel/FilterPanel';
@@ -22,7 +22,7 @@ export default function App() {
   const [viewOnlyFavorites, setViewOnlyFavorites] = useState(false);
 
   const { data, isLoading, isError } = useGetMoviesQuery({
-    genreId: null,
+    genreId: filters.genre === 'All' ? null : parseInt(filters.genre),
     releaseYear: filters.year === 'All' ? null : parseInt(filters.year),
     minRating: filters.minRating,
     sortBy: 'popularity.desc',
@@ -75,62 +75,12 @@ export default function App() {
   }
 
   // 3. Computed / Filtered Movie List
-  const filteredMovies = useMemo(() => {
-    let result = [...moviesFromApi];
-
-    // Filter by Search Query
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (m) =>
-          m.title.toLowerCase().includes(query) ||
-          m.overview.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by Genre
-    if (filters.genre !== 'All') {
-      result = result.filter((m) => m.genreIds === filters.genre);
-    }
-
-    // Filter by Year
-    if (filters.year !== 'All') {
-      if (filters.year === 'Older') {
-        result = result.filter((m) => m.releaseYear < 2022);
-      } else {
-        result = result.filter((m) => m.releaseYear === parseInt(filters.year, 10));
-      }
-    }
-
-    // Filter by Rating
-    if (filters.minRating > 0) {
-      result = result.filter((m) => m.rating >= filters.minRating);
-    }
-
-    // Filter by Favorites Only
-    if (viewOnlyFavorites) {
-      result = result.filter((m) => favorites.includes(m.id));
-    }
-
-    // Sorting
-    result.sort((a, b) => {
-      switch (filters.sortBy) {
-        case 'rating-desc':
-          return b.rating - a.rating;
-        case 'year-desc':
-          return b.releaseYear - a.releaseYear;
-        case 'year-asc':
-          return a.releaseYear - b.releaseYear;
-        case 'title-asc':
-          return a.title.localeCompare(b.title);
-        default:
-          return b.rating - a.rating;
-      }
-    });
-
-    return result;
-  }, [filters, searchQuery, favorites, viewOnlyFavorites]);
-
+  const getGenreLabel = (value) => {
+    const genre = GENRES.find((g) => {
+      return g.value === value
+    })
+    return genre.label
+  }
   // Is any filter active?
   const isFilteringActive = useMemo(() => {
     return (
@@ -212,7 +162,7 @@ export default function App() {
                 sortBy={filters.sortBy}
                 onSortChange={handleSortChange}
                 onReset={handleResetFilters}
-                totalCount={filteredMovies.length}
+                totalCount={data?.results.length ?? 0}
               />
             </div>
           </aside>
@@ -271,7 +221,7 @@ export default function App() {
                         sortBy={filters.sortBy}
                         onSortChange={handleSortChange}
                         onReset={handleResetFilters}
-                        totalCount={filteredMovies.length}
+                        totalCount={data?.results.length ?? 0}
                       />
                     </div>
                   </SheetContent>
@@ -286,7 +236,9 @@ export default function App() {
                 
                 {filters.genre !== 'All' && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-amber-400 font-medium">
-                    {filters.genre}
+                    {/* {GENRES.find(g => g.value == filters.genre)} */}
+                    { getGenreLabel(filters.genre)}
+                    {/* { filters.genre } */}
                     <button onClick={() => handleGenreChange('All')} className="hover:text-amber-200 ml-0.5 cursor-pointer">×</button>
                   </span>
                 )}
@@ -330,12 +282,12 @@ export default function App() {
 
             {/* C. MEDIA CARD GRID LAYOUT */}
             <AnimatePresence mode="popLayout">
-              {filteredMovies.length > 0 ? (
+              {(data?.results.length ?? 0) > 0 ? (
                 <motion.div
                   layout
                   className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
                 >
-                  {filteredMovies.map((movie) => (
+                  {(data?.results ?? []).map((movie) => (
                     <MediaCard
                       key={movie.id}
                       title={movie.title}
