@@ -1,0 +1,6 @@
+{
+  "name": "Movie Explorer & Filter",
+  "description": "A elegant movie explorer interface with responsive filter panels, sidebar layouts, and a bottom sheet drawer for mobile.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
